@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="pl">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Implementacja Systemów AI — Warsztaty SGGW</title>
+
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+		<link rel="stylesheet" href="dist/theme/black.css">
+
+		<!-- Theme used for syntax highlighted code -->
+		<link rel="stylesheet" href="plugin/highlight/monokai.css">
+
+		<style>
+			.reveal .slides {
+				font-size: 0.8em;
+				text-align: left;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+
+<!-- ============================================================ -->
+<!-- SEKCJA 0: Slajd tytulowy                                     -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+## Sieci neuronowe w PyTorch
+### Warsztaty SGGW
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Plan warsztatów
+
+| # | Temat |
+|---|-------|
+| 1 | Wprowadzenie do PyTorch |
+| 2 | Gradient Descent i pętla treningowa |
+| 3 | Perceptron wielowarstwowy (MLP) |
+| 4 | Konwolucyjne sieci neuronowe (CNN) |
+| 5 | Word Embeddings |
+| 6 | RNN / LSTM — klasyfikacja tekstu |
+</textarea></section>
+</section>
+
+<!-- ============================================================ -->
+<!-- SEKCJA 2: Sesja 1 — Wprowadzenie do PyTorch                  -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+## 1. Wprowadzenie do PyTorch
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Co to jest tensor?
+
+| Wymiar | Nazwa | Przykład |
+|--------|-------|---------|
+| 0 | Skalar | `torch.tensor(3.14)` |
+| 1 | Wektor | Embedding słowa |
+| 2 | Macierz | Obraz czarno-biały |
+| 3 | Tensor 3D | Obraz kolorowy (C, H, W) |
+| 4 | Tensor 4D | Batch obrazów (B, C, H, W) |
+
+Tensor = wielowymiarowa tablica z obsługą GPU i autograd
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Tworzenie tensorów
+
+```python
+import torch
+
+# Z listy Pythona
+x = torch.tensor([1, 2, 3])
+
+# Specjalne tensory
+zeros = torch.zeros(3, 4)
+ones = torch.ones(2, 3)
+rand = torch.randn(3, 3)  # rozkład normalny
+
+# Z NumPy
+import numpy as np
+np_array = np.array([1.0, 2.0, 3.0])
+tensor = torch.from_numpy(np_array)
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Atrybuty tensora
+
+```python
+x = torch.randn(3, 4)
+
+print(x.shape)   # torch.Size([3, 4])
+print(x.dtype)   # torch.float32
+print(x.device)  # cpu
+```
+
+### CPU vs GPU — device-agnostic pattern
+
+```python
+device = torch.device(
+    "cuda" if torch.cuda.is_available() else "cpu"
+)
+
+# Przenosimy model i dane na to samo urządzenie
+model = model.to(device)
+x = x.to(device)
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Autograd: automatyczne różniczkowanie
+
+```python
+# f(x) = x², chcemy df/dx przy x=3
+x = torch.tensor(3.0, requires_grad=True)
+
+y = x ** 2        # y = 9
+y.backward()       # oblicz gradient
+
+print(x.grad)      # tensor(6.) — bo dy/dx = 2x = 6
+```
+
+- `requires_grad=True` — śledź operacje
+- `.backward()` — oblicz gradienty (wsteczna propagacja)
+- `.grad` — odczytaj obliczony gradient
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Regresja liniowa — pętla treningowa
+
+```python
+w = torch.tensor([0.0], requires_grad=True)
+b = torch.tensor([0.0], requires_grad=True)
+
+for epoch in range(n_epochs):
+    # 1. Forward pass
+    y_pred = X * w + b
+
+    # 2. Oblicz stratę
+    loss = ((y_pred - y) ** 2).mean()
+
+    # 3. Backward pass
+    loss.backward()
+
+    # 4. Aktualizuj parametry
+    with torch.no_grad():
+        w -= learning_rate * w.grad
+        b -= learning_rate * b.grad
+
+    # 5. Wyzeruj gradienty!
+    w.grad.zero_()
+    b.grad.zero_()
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### 5 kroków pętli treningowej
+
+```
+1. Forward pass     → y_pred = model(x)
+2. Oblicz stratę    → loss = criterion(y_pred, y)
+3. Backward pass    → loss.backward()
+4. Aktualizuj wagi  → optimizer.step()
+5. Wyzeruj gradienty → optimizer.zero_grad()
+```
+
+Te 5 kroków powtarza się **w każdej sesji** warsztatów.
+
+Zapamiętaj tę kolejność!
+</textarea></section>
+</section>
+
+<!-- ============================================================ -->
+<!-- SEKCJA 3: Sesja 2 — Gradient Descent                         -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+## 2. Gradient Descent
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Funkcje straty (Loss Functions)
+
+**Regresja** — Mean Squared Error (średni błąd kwadratowy)
+
+**Klasyfikacja** — Cross-Entropy (entropia krzyżowa)
+
+```python
+nn.MSELoss()           # regresja
+nn.CrossEntropyLoss()  # klasyfikacja (zawiera softmax!)
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Gradient Descent — intuicja
+
+Wyobraź sobie, że stoisz na górze **we mgle**.
+
+Chcesz zejść na dół, ale nie widzisz celu.
+
+**Strategia:** W każdym kroku sprawdź nachylenie terenu pod stopami i idź w kierunku największego spadku.
+
+- **Gradient** — kierunek najszybszego wzrostu straty
+- **Learning rate** — wielkość kroku
+- Idziemy **w przeciwnym** kierunku do gradientu (spadek, nie wzrost)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Learning rate — efekty
+
+| Learning rate | Efekt |
+|---------------|-------|
+| Za mały (0.0001) | Bardzo wolna zbieżność |
+| Optymalny (0.01) | Stabilna zbieżność |
+| Za duży (1.0) | Oscylacje wokół minimum |
+| Ogromny (10.0) | Dywergencja — loss rośnie! |
+
+**Zasada:** Zacznij od `lr=0.001` (domyślny Adam) i dostosuj.
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Pętla treningowa z `optim`
+
+```python
+model = MyModel()
+criterion = nn.MSELoss()
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+for epoch in range(n_epochs):
+    # 1. Forward
+    y_pred = model(X)
+
+    # 2. Loss
+    loss = criterion(y_pred, y)
+
+    # 3. Backward
+    loss.backward()
+
+    # 4. Update
+    optimizer.step()
+
+    # 5. Zero grad
+    optimizer.zero_grad()
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### SGD vs Adam
+
+| Cecha | SGD | Adam |
+|-------|-----|------|
+| Mechanizm | Czysty gradient | Gradient + momentum + adaptacyjny lr |
+| Learning rate | Wymaga tuning | Dobre domyślne (`0.001`) |
+| Pamięć | Mała | 2x więcej (momentum + variance) |
+| Kiedy używać | Duże zbiory, fine-tuning | Domyślny wybór, szybka zbieżność |
+
+```python
+optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+optim.Adam(model.parameters(), lr=0.001)
+```
+</textarea></section>
+</section>
+
+<!-- ============================================================ -->
+<!-- SEKCJA 4: Sesja 3 — MLP                                      -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+## 3. Perceptron wielowarstwowy (MLP)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Problem XOR
+
+| x₁ | x₂ | XOR |
+|----|----|----|
+| 0 | 0 | 0 |
+| 0 | 1 | 1 |
+| 1 | 0 | 1 |
+| 1 | 1 | 0 |
+
+Żadna **prosta linia** nie może rozdzielić klas 0 i 1.
+
+Model liniowy (`y = wx + b`) **nie rozwiąże** tego problemu!
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Rozwiązanie: warstwa ukryta + nieliniowość
+
+```python
+class MLPModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.hidden = nn.Linear(2, 4)  # 2 -> 4
+        self.output = nn.Linear(4, 1)  # 4 -> 1
+
+    def forward(self, x):
+        x = torch.relu(self.hidden(x))  # Nieliniowość!
+        x = torch.sigmoid(self.output(x))
+        return x
+```
+
+**Kluczowy element:** `torch.relu()` — bez niego sieć pozostaje liniowa!
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Funkcje aktywacji
+
+| Funkcja | Wzór | Zakres | Użycie |
+|---------|------|--------|--------|
+| **ReLU** | max(0, x) | [0, ∞) | Warstwy ukryte (domyślna) |
+| **Sigmoid** | 1/(1+e⁻ˣ) | (0, 1) | Klasyfikacja binarna (wyjście) |
+| **Softmax** | eˣⁱ/Σeˣ | (0, 1), suma=1 | Klasyfikacja wieloklasowa |
+| **Tanh** | (eˣ-e⁻ˣ)/(eˣ+e⁻ˣ) | (-1, 1) | RNN (historycznie) |
+
+**Zasada:** ReLU w środku sieci, Sigmoid/Softmax na wyjściu.
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Wzorzec `nn.Module`
+
+Każdy model w PyTorch:
+
+```python
+class MyModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # Zdefiniuj warstwy (parametry)
+        self.layer1 = nn.Linear(...)
+        self.layer2 = nn.Linear(...)
+
+    def forward(self, x):
+        # Zdefiniuj przepływ danych
+        x = torch.relu(self.layer1(x))
+        x = self.layer2(x)
+        return x
+```
+
+- `__init__` → **CO** sieć zawiera (architektura)
+- `forward` → **JAK** dane przepływają przez sieć
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Klasyfikator MNIST
+
+```python
+class MNISTClassifier(nn.Module):
+    """784 -> 256 -> 128 -> 10"""
+
+    def __init__(self):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Flatten(),         # (B,1,28,28) -> (B,784)
+            nn.Linear(784, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 10)    # 10 klas (cyfry 0-9)
+        )
+
+    def forward(self, x):
+        return self.layers(x)
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Częste błędy
+
+**1. Podwójny softmax:**
+```python
+# ŹLE — CrossEntropyLoss już zawiera softmax!
+x = F.softmax(self.fc(x))
+loss = nn.CrossEntropyLoss()(x, target)
+
+# DOBRZE
+x = self.fc(x)  # surowe logity
+loss = nn.CrossEntropyLoss()(x, target)
+```
+
+**2. Zły kształt tensora:**
+```python
+# Nie zapomnij o Flatten przed Linear!
+nn.Flatten()  # (B, C, H, W) -> (B, C*H*W)
+```
+
+**3. Zapomnienie o `model.eval()`:**
+```python
+model.eval()          # wyłącza dropout, batch norm
+with torch.no_grad(): # nie śledź gradientów
+    predictions = model(test_data)
+```
+</textarea></section>
+</section>
+
+<!-- ============================================================ -->
+<!-- SEKCJA 5: Sesja 4 — CNN                                      -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+## 4. Konwolucyjne sieci neuronowe (CNN)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Dlaczego CNN a nie MLP dla obrazów?
+
+**MLP** dla obrazu 32×32×3:
+
+- Input: 3072 neurony (spłaszczony obraz)
+- Traci **strukturę przestrzenną**
+- Ogromna liczba parametrów
+
+**CNN:**
+
+- Filtry przesuwają się po obrazie
+- Zachowuje **relacje przestrzenne** (sąsiednie piksele)
+- **Dzielenie parametrów** — ten sam filtr na całym obrazie
+- Znacznie mniej parametrów!
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Operacja konwolucji
+
+Filtr (kernel) przesuwa się po obrazie i oblicza iloczyn skalarny:
+
+```
+Obraz:          Filtr 3×3:       Wynik:
+1 2 3 4         -1 0 1
+5 6 7 8    *    -2 0 2    =     ?
+9 0 1 2         -1 0 1
+3 4 5 6
+```
+
+Różne filtry wykrywają różne cechy:
+- Krawędzie pionowe / poziome
+- Tekstury, wzory
+- Głębsze warstwy → bardziej abstrakcyjne cechy
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### `nn.Conv2d` — parametry
+
+```python
+nn.Conv2d(
+    in_channels=3,     # kanały wejściowe (RGB=3)
+    out_channels=32,   # liczba filtrów
+    kernel_size=3,     # rozmiar filtra (3×3)
+    padding=1,         # zachowaj rozmiar
+    stride=1           # krok przesunięcia
+)
+```
+
+### Rozmiar wyjścia
+
+`output = (input + 2*padding - kernel) / stride + 1`
+
+Przykład: `(32 + 2*1 - 3) / 1 + 1 = 32`
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### MaxPool2d — redukcja rozmiaru
+
+```python
+nn.MaxPool2d(kernel_size=2, stride=2)
+```
+
+Z okna 2×2 wybiera **maksymalną** wartość:
+
+```
+| 1  3 | 5  2 |        | 4 | 5 |
+| 4  2 | 1  3 |   →    | 7 | 6 |
+| 7  1 | 6  4 |
+| 2  5 | 3  2 |
+```
+
+- Zmniejsza wymiary 2× (32→16→8)
+- Wprowadza odporność na małe przesunięcia
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### SimpleCNN — CIFAR-10
+
+```python
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),           # 32x32 -> 16x16
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)            # 16x16 -> 8x8
+        )
+        self.fc_layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64 * 8 * 8, 256),
+            nn.ReLU(),
+            nn.Linear(256, 10)
+        )
+
+    def forward(self, x):
+        x = self.conv_layers(x)
+        x = self.fc_layers(x)
+        return x
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Śledzenie wymiarów przez sieć
+
+```
+Input:          (B,  3, 32, 32)
+Conv2d(3→32):   (B, 32, 32, 32)   kernel=3, pad=1
+ReLU:           (B, 32, 32, 32)
+MaxPool2d(2):   (B, 32, 16, 16)   ↓ 2×
+
+Conv2d(32→64):  (B, 64, 16, 16)   kernel=3, pad=1
+ReLU:           (B, 64, 16, 16)
+MaxPool2d(2):   (B, 64,  8,  8)   ↓ 2×
+
+Flatten:        (B, 4096)          64 × 8 × 8
+Linear→256:     (B, 256)
+Linear→10:      (B, 10)           10 klas CIFAR-10
+```
+
+**Tip:** Zawsze zapisuj wymiary — to najczęstsze źródło błędów!
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Feature maps — co widzi CNN?
+
+| Warstwa | Co wykrywa |
+|---------|-----------|
+| Conv1 | Krawędzie, kolory, proste tekstury |
+| Conv2 | Kąty, łuki, proste wzory |
+| Conv3+ | Części obiektów (oczy, koła, liście) |
+| FC | Kombinacje — cały obiekt |
+
+Głębsze warstwy = bardziej abstrakcyjne cechy.
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Data Augmentation
+
+Zwiększ zbiór treningowy **bez zbierania nowych danych:**
+
+```python
+transform_train = transforms.Compose([
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(10),
+    transforms.RandomCrop(32, padding=4),
+    transforms.ColorJitter(brightness=0.2),
+    transforms.ToTensor(),
+    transforms.Normalize(mean, std)
+])
+```
+
+- Stosuj **tylko** na zbiorze treningowym
+- Zbiór testowy — tylko `ToTensor()` + `Normalize()`
+- Pomaga zapobiegać **overfittingowi**
+</textarea></section>
+</section>
+
+<!-- ============================================================ -->
+<!-- SEKCJA 6: Sesja 5 — Word Embeddings                          -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+## 5. Word Embeddings
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Problem z one-hot encoding
+
+Słownik: [kot, pies, samochód, rower]
+
+```
+kot       = [1, 0, 0, 0]
+pies      = [0, 1, 0, 0]
+samochód  = [0, 0, 1, 0]
+rower     = [0, 0, 0, 1]
+```
+
+**Problemy:**
+
+- ❌ Brak semantyki — „kot" i „pies" tak samo odległe jak „kot" i „samochód"
+- ❌ Ogromne wymiary — słownik 50k = wektor 50k
+- ❌ Rzadkie (sparse) — prawie same zera
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Idea embeddingów
+
+Zamiast one-hot → **gęsty, niskowymiarowy wektor:**
+
+```
+kot       = [0.2, -0.4, 0.7, 0.1, ...]   # 100 wymiarów
+pies      = [0.3, -0.3, 0.6, 0.2, ...]   # podobne!
+samochód  = [-0.5, 0.8, -0.2, 0.4, ...]  # inne
+```
+
+**Zalety:**
+
+- ✅ Podobne słowa → podobne wektory
+- ✅ Stały, mały wymiar (50-300)
+- ✅ Gęste — każdy wymiar niesie informację
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### `nn.Embedding` — tablica lookup
+
+```python
+vocab_size = 1000
+embedding_dim = 100
+
+embedding = nn.Embedding(
+    num_embeddings=vocab_size,
+    embedding_dim=embedding_dim
+)
+
+# Weight matrix: (1000, 100)
+word_indices = torch.tensor([0, 5, 10, 999])
+word_embeddings = embedding(word_indices)
+# Output shape: (4, 100)
+```
+
+`nn.Embedding` to macierz wag — indeks słowa → wiersz macierzy.
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Pre-trained embeddings: GloVe
+
+Wytrenowane na miliardach słów (Wikipedia, Twitter, ...):
+
+```python
+import gensim.downloader as api
+
+glove = api.load("glove-wiki-gigaword-100")
+
+# Sprawdź embedding
+cat = glove['cat']     # shape: (100,)
+
+# Znajdź podobne słowa
+glove.most_similar('king')
+# [('queen', 0.73), ('prince', 0.71), ...]
+```
+
+**Dlaczego pre-trained?**
+
+- Więcej danych niż Twój zbiór treningowy
+- Uchwycone relacje semantyczne
+- Można fine-tunować na swoim zadaniu
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Analogie słowne
+
+`king - man + woman ≈ queen`
+
+```python
+glove.most_similar(
+    positive=['king', 'woman'],
+    negative=['man']
+)
+# → [('queen', 0.73), ...]
+```
+
+Embeddingi uczą się **relacji semantycznych:**
+- king:queen = man:woman (płeć)
+- Paris:France = Berlin:Germany (stolice)
+- big:bigger = small:smaller (stopniowanie)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Wizualizacja t-SNE
+
+**t-SNE** — redukcja 100D → 2D z zachowaniem sąsiedztwa:
+
+```python
+from sklearn.manifold import TSNE
+
+tsne = TSNE(n_components=2, random_state=42)
+embeddings_2d = tsne.fit_transform(word_vectors)
+
+plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1])
+for i, word in enumerate(words):
+    plt.annotate(word, xy=(embeddings_2d[i, 0],
+                           embeddings_2d[i, 1]))
+```
+
+Na wykresie: klastry zwierząt, krajów, kolorów, ...
+</textarea></section>
+</section>
+
+<!-- ============================================================ -->
+<!-- SEKCJA 7: Sesja 6 — RNN / LSTM                               -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+## 6. RNN / LSTM
+### Klasyfikacja tekstu
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Dlaczego RNN? Kolejność ma znaczenie!
+
+**Bag-of-words** traktuje zdanie jako zbiór:
+
+- „Pies goni kota" = „Kot goni psa" ❌
+
+**RNN** przetwarza słowa **sekwencyjnie:**
+
+```
+„Pies"  →  h₁
+„goni"  →  h₂ (pamięta „Pies")
+„kota"  →  h₃ (pamięta „Pies goni")
+```
+
+Stan ukryty $h_t$ = „pamięć" sieci o dotychczasowej sekwencji.
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### RNN — jak działa?
+
+- Wejście w kroku t: embedding słowa
+- Stan ukryty: „pamięć" z poprzednich kroków
+- Nowy stan = funkcja(poprzedni stan, aktualne wejście)
+- **Te same wagi** w każdym kroku — niezależnie od długości sekwencji
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Problem zanikającego gradientu
+
+Przy długich sekwencjach gradient maleje wykładniczo:
+
+```
+Słowo 1 ← ... ← Słowo 50 ← ... ← Słowo 200
+  ↑ gradient ≈ 0                      ↑ loss
+```
+
+RNN „zapomina" wcześniejsze słowa!
+
+**Rozwiązanie:** LSTM (Long Short-Term Memory)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### LSTM: 3 bramki + stan komórki
+
+| Bramka | Funkcja | Intuicja |
+|--------|---------|----------|
+| **Forget** | Co zapomnieć z $c_{t-1}$ | „Zmiana tematu" |
+| **Input** | Co dodać do pamięci | „Nowa informacja" |
+| **Output** | Co zwrócić jako $h_t$ | „Co jest teraz ważne" |
+
+**Stan komórki** $c_t$
+
+- Informacja może przepływać bez zmian przez wiele kroków
+- Bramki uczą się, kiedy pamiętać, a kiedy zapomnieć
+- Rozwiązuje problem zanikającego gradientu!
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Bidirectional LSTM
+
+Standardowy LSTM: czyta tylko w przód →
+
+```
+„Film był okropny, ale aktorzy świetni"
+  →  →  →  →   →   →    →       →
+```
+
+**BiLSTM:** czyta w **obie strony:**
+
+```
+  →  →  →  →   →   →    →       →    (forward)
+  ←  ←  ←  ←   ←   ←    ←       ←    (backward)
+```
+
+Każde słowo ma kontekst z **lewej i prawej strony**.
+
+`hidden_dim * 2` — podwójny wymiar wyjścia.
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Pipeline przetwarzania tekstu
+
+```
+1. Czyszczenie     → usuwanie HTML, interpunkcji
+2. Tokenizacja     → "Film był dobry" → ["film","był","dobry"]
+3. Budowa słownika → {"film": 1, "był": 2, "dobry": 3, ...}
+4. Numeryzacja     → [1, 2, 3]
+5. Padding         → [1, 2, 3, 0, 0, ..., 0]  (max_len=256)
+6. Tensor          → torch.tensor([1, 2, 3, 0, ...])
+```
+
+Stała długość sekwencji = możliwość batchowania!
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### `IMDbDataset` — enkapsulacja danych
+
+```python
+class IMDbDataset(Dataset):
+    def __init__(self, texts, labels, vocab, max_len=256):
+        self.texts = texts
+        self.labels = labels
+        self.vocab = vocab
+        self.max_len = max_len
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        tensor = text_to_tensor(
+            self.texts[idx], self.vocab, self.max_len
+        )
+        label = torch.tensor(
+            self.labels[idx], dtype=torch.float32
+        )
+        return tensor, label
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### `SentimentLSTM` — pełny model
+
+```python
+class SentimentLSTM(nn.Module):
+    def __init__(self, vocab_size, embed_dim=100,
+                 hidden_dim=128, num_layers=1, dropout=0.5):
+        super().__init__()
+        self.embedding = nn.Embedding(
+            vocab_size, embed_dim, padding_idx=0
+        )
+        self.lstm = nn.LSTM(
+            input_size=embed_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=dropout if num_layers > 1 else 0
+        )
+        self.dropout = nn.Dropout(dropout)
+        self.fc = nn.Linear(hidden_dim * 2, 1)
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### `SentimentLSTM` — forward
+
+```python
+    def forward(self, x):
+        # (batch, seq_len) -> (batch, seq_len, embed_dim)
+        embedded = self.dropout(self.embedding(x))
+
+        # LSTM
+        output, (hidden, cell) = self.lstm(embedded)
+
+        # Konkatenacja forward + backward hidden state
+        hidden_cat = torch.cat(
+            (hidden[-2], hidden[-1]), dim=1
+        )
+
+        # Klasyfikacja
+        out = self.fc(self.dropout(hidden_cat))
+        return out.squeeze(1)
+```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Gradient clipping
+
+LSTM mogą mieć **eksplodujące gradienty** (odwrotność zanikających):
+
+```python
+for epoch in range(n_epochs):
+    for batch in dataloader:
+        loss = criterion(model(X), y)
+        loss.backward()
+
+        # Obcinanie gradientów!
+        torch.nn.utils.clip_grad_norm_(
+            model.parameters(), max_norm=5.0
+        )
+
+        optimizer.step()
+        optimizer.zero_grad()
+```
+
+`clip_grad_norm_` skaluje gradienty, gdy ich norma > `max_norm`.
+</textarea></section>
+</section>
+
+<!-- ============================================================ -->
+<!-- SEKCJA 8: Podsumowanie                                       -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+## Podsumowanie
+
+### Czego się nauczyliśmy?
+
+| Sesja | Kluczowe pojęcia |
+|-------|-----------------|
+| 1. PyTorch Intro | Tensory, autograd, `backward()` |
+| 2. Gradient Descent | Loss functions, SGD, Adam |
+| 3. MLP | `nn.Module`, warstwy ukryte, ReLU |
+| 4. CNN | Konwolucja, pooling, feature maps |
+| 5. Embeddings | `nn.Embedding`, GloVe, analogie |
+| 6. RNN/LSTM | Sekwencje, bramki, BiLSTM |
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Co dalej?
+
+- **Transformers** — mechanizm atencji zamiast rekurencji
+- **BERT / GPT** — pre-trained language models
+- **Hugging Face** 🤗 — gotowe modele i datasety
+- **Transfer learning** — fine-tuning pre-trained modeli
+- **LLM** — Large Language Models i prompt engineering
+
+```python
+from transformers import pipeline
+
+classifier = pipeline("sentiment-analysis")
+classifier("This workshop was great!")
+# [{'label': 'POSITIVE', 'score': 0.9998}]
+```
+</textarea></section>
+
+</section>
+
+			</div>
+		</div>
+
+		<script src="dist/reveal.js"></script>
+		<script src="plugin/markdown/markdown.js"></script>
+		<script src="plugin/highlight/highlight.js"></script>
+		<script src="plugin/notes/notes.js"></script>
+		<script>
+			Reveal.initialize({
+				hash: true,
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+			});
+		</script>
+	</body>
+</html>
