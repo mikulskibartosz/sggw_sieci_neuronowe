@@ -262,8 +262,8 @@ for epoch in range(n_epochs):
 | Kiedy używać | Duże zbiory, fine-tuning | Domyślny wybór, szybka zbieżność |
 
 ```python
-optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-optim.Adam(model.parameters(), lr=0.001)
+optim.SGD(model.parameters(), lr=0.01)
+optim.Adam(model.parameters(), lr=0.001, momentum=0.9)
 ```
 </textarea></section>
 </section>
@@ -396,6 +396,18 @@ model.eval()          # wyłącza dropout, batch norm
 with torch.no_grad(): # nie śledź gradientów
     predictions = model(test_data)
 ```
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Neuron — wizualizacja
+
+![Pojedynczy neuron](images/nn_neuron_01.png)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Architektura MLP
+
+![MLP](images/nn_mlp_02.png)
 </textarea></section>
 </section>
 
@@ -565,6 +577,30 @@ transform_train = transforms.Compose([
 - Stosuj **tylko** na zbiorze treningowym
 - Zbiór testowy — tylko `ToTensor()` + `Normalize()`
 - Pomaga zapobiegać **overfittingowi**
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Operacja konwolucji — wizualizacja
+
+![Konwolucja](images/nn_cnn_04.png)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Wiele filtrów = wiele map cech
+
+![Filtry CNN](images/nn_cnn_filtry_05.png)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### MaxPooling — wizualizacja
+
+![MaxPooling](images/nn_max_pooling_06.png)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Hierarchia cech CNN
+
+![Hierarchia cech](images/nn_hierarchia_cech_07.png)
 </textarea></section>
 </section>
 
@@ -896,6 +932,24 @@ for epoch in range(n_epochs):
 
 `clip_grad_norm_` skaluje gradienty, gdy ich norma > `max_norm`.
 </textarea></section>
+
+<section data-markdown><textarea data-template>
+### RNN rozwinięty w czasie
+
+![RNN](images/nn_rnn_08.png)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Architektura LSTM
+
+![LSTM](images/nn_lstm_09.png)
+</textarea></section>
+
+<section data-markdown><textarea data-template>
+### Zanikający gradient — wizualizacja
+
+![Zanikający gradient](images/nn_zanikajacy_gradient_10.png)
+</textarea></section>
 </section>
 
 <!-- ============================================================ -->
@@ -935,6 +989,21 @@ classifier("This workshop was great!")
 ```
 </textarea></section>
 
+</section>
+
+<!-- ============================================================ -->
+<!-- SEKCJA 9: Zadanie                                            -->
+<!-- ============================================================ -->
+<section>
+<section data-markdown><textarea data-template>
+### Zadanie
+
+https://www.youtube.com/watch?v=zxagGtF9MeU&list=PLblh5JKOoLUIxGDQs4LFFD--41Vzf-ME1
+
+![Zadanie](images/zadanie.png)
+
+[StatQuest: Neural Networks playlist](https://www.youtube.com/watch?v=zxagGtF9MeU&list=PLblh5JKOoLUIxGDQs4LFFD--41Vzf-ME1)
+</textarea></section>
 </section>
 
 			</div>
